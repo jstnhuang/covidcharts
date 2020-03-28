@@ -2,13 +2,12 @@ import './chartjs-chart.js'
 
 import {css, html, LitElement} from 'lit-element';
 
-import {generateUsaDaily} from '../modules/chartgen.js';
+import {us_daily} from '../data/us_daily.js';
 
 class CovidChartsApp extends LitElement {
   constructor() {
     super();
     this.usaUseLog = false;
-    this.usaDaily = generateUsaDaily(this.usaUseLog);
   }
   static get properties() { return {usaUseLog : Boolean}; }
   static get styles() {
@@ -23,11 +22,7 @@ class CovidChartsApp extends LitElement {
       <h1>COVID-19 Charts</h1>
 
       <h2>United States</h2>
-      ${this.usaUseLog
-        ? html`Showing log scale <button @click="${this.toggleUsaUseLog}">Use linear scale</button>`
-        : html`Showing linear scale <button @click="${this.toggleUsaUseLog}">Use log scale</button>`}
-
-      <chartjs-chart .config="${this.usaDaily}"></chartjs-chart>
+      <chartjs-chart .data="${us_daily}"></chartjs-chart>
 
       <h2>About the data</h2>
       <p>
@@ -37,11 +32,6 @@ class CovidChartsApp extends LitElement {
     `;
   }
 
-  // Custom methods ------------------------------------------------------------
-  toggleUsaUseLog() {
-    this.usaUseLog = !this.usaUseLog;
-    this.usaDaily = generateUsaDaily(this.usaUseLog);
-  }
 }
 
 customElements.define('covid-charts-app', CovidChartsApp);
