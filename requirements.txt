@@ -1,1 +1,2 @@
-Flask==1.1.1
+python-dateutil
+requests==2.23
