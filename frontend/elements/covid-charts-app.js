@@ -7,9 +7,7 @@ import {us_daily} from '../data/us_daily.js';
 class CovidChartsApp extends LitElement {
   constructor() {
     super();
-    this.usaUseLog = false;
   }
-  static get properties() { return {usaUseLog : Boolean}; }
   static get styles() {
     return css `
       chartjs-chart {
