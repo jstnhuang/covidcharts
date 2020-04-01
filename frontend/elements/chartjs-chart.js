@@ -33,8 +33,10 @@ class ChartJsChart extends LitElement {
 
   // Rendering -----------------------------------------------------------------
   get renderDataOptions() {
-    var datasets = ["positive", "deaths", "totalTestResults", "positivePerTest",
-      "deathsPerPositive"];
+    var datasets = ["positive", "hospitalized", "deaths", "totalTestResults",
+      "positiveIncrease", "hospitalizedIncrease", "deathIncrease",
+      "positivePerTest", "deathsPerPositive", "deathsPerHospitalized",
+      "deathsPerTest"];
     return html`
       <label for="data">Data:</label>
       <select id="data" @change=${this.changeData}>
@@ -69,19 +71,31 @@ class ChartJsChart extends LitElement {
 
   datasetName(codeName) {
     if (codeName === "positive") {
-      return "Confirmed cases";
+      return "Total confirmed cases";
+    } else if (codeName === "hospitalized") {
+      return "Total hospitalized"
     } else if (codeName === "deaths") {
-      return "Deaths";
+      return "Total deaths";
     } else if (codeName === "totalTestResults") {
-      return "Tests conducted";
+      return "Total tests conducted";
+    } else if (codeName === "positiveIncrease") {
+      return "# daily cases";
+    } else if (codeName === "hospitalizedIncrease") {
+      return "# daily hospitalized";
+    } else if (codeName === "deathIncrease") {
+      return "# daily deaths";
     } else if (codeName === "positivePerTest") {
-      return "Confirmed cases per test conducted";
+      return "Total confirmed cases / total tests";
     } else if (codeName === "positivePerCapita") {
-      return "Confirmed cases per capita";
+      return "Total Confirmed cases per capita";
     } else if (codeName === "deathsPerPositive") {
-      return "Deaths per confirmed case";
+      return "Total deaths / total confirmed cases";
     } else if (codeName === "deathsPerCapita") {
-      return "Deaths per capita";
+      return "Total deaths per capita";
+    } else if (codeName === "deathsPerHospitalized") {
+      return "Total deaths / total hospitalized";
+    } else if (codeName === "deathsPerTest") {
+      return "Total deaths / total tests";
     } else if (codeName === "testsPerCapita") {
       return "Tests conducted per capita";
     }
@@ -89,7 +103,6 @@ class ChartJsChart extends LitElement {
 
   toggleUseLogScale() {
     this.useLogScale = !this.useLogScale;
-    this.updateChart();
   }
 
   updateChart() {
@@ -109,7 +122,7 @@ class ChartJsChart extends LitElement {
         }
         dataVals.push({
           x: datum["days"],
-          y: val
+          y: val ? val : NaN
         });
       } else {
         dataVals.push({
@@ -124,8 +137,7 @@ class ChartJsChart extends LitElement {
     });
     var latestDay = this.data[this.data.length-1]['days']
 
-    // Output config
-    this.chartConfig = {
+    var chartConfig = {
       type: 'line',
       data: {
         datasets: [{
@@ -136,7 +148,7 @@ class ChartJsChart extends LitElement {
         labels: dateLabels
       },
       options: {
-        spanGaps: true,
+        spanGaps: false,
         scales: {
           xAxes: [{
             ticks: {
@@ -147,16 +159,24 @@ class ChartJsChart extends LitElement {
             }
           }],
           yAxes: [{
-            ticks: {beginAtZero: true},
+            ticks: {beginAtZero: true, min: 0},
             type: this.useLogScale ? 'logarithmic' : 'linear'
           }]
         }
       }
     };
-    var ctx = this.shadowRoot.getElementById('chart');
-    if (ctx) {
-      delete this.chart;
-      this.chart = new Chart(ctx, this.chartConfig);
+
+    // Output config
+    if (this.chart) {
+      Object.assign(this.chartConfig.options, chartConfig.options);
+      Object.assign(this.chartConfig.data, chartConfig.data);
+      this.chart.update()
+    } else {
+      this.chartConfig = chartConfig;
+      var ctx = this.shadowRoot.getElementById('chart');
+      if (ctx) {
+        this.chart = new Chart(ctx, this.chartConfig);
+      }
     }
   }
 }
