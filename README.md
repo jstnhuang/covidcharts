@@ -7,3 +7,11 @@ Currently, the data is updated manually by calling a script and copying processe
 cd frontend
 polymer serve
 ```
+
+To deploy the site:
+```bash
+cd frontend
+polymer build
+cd ../deploy
+gcloud app deploy
+```
