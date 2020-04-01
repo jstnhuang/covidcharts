@@ -109,10 +109,12 @@ def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
     days: A float indicating days since the first data point (the first day is
         days=0). 
     deaths: The number of deaths
+    deathIncrease: The increase in the number of deaths from the day before
     deathsPerHospitalized: number of deaths per hospitalized
     deathsPerPositive: number of deaths per positive test
     deathsPerTest: number of deaths per test
     hospitalized: The number of hospitalized cases
+    hospitalizedIncrease: The increase in hospitalized from the day before
     hospitalizedPerPositive: The number of hospitalized cases per positive test
     hospitalizedPerTest: The number of hospitalized cases per test
     label: Date label YYYY-MM-DD
@@ -121,6 +123,7 @@ def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
     lnPositivePerCapita: ln(number of positive test results per capita)
     lnTestsPerCapita: ln(number of tests per capita)
     positive: The number of positive test results
+    positiveIncrease: The number of new positive cases
     positivePerTest: number of positive test results per test
     totalTestResults: The number of tests
     """
@@ -138,8 +141,11 @@ def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
         date = get_date(datum)
         days = (date - min_date) / DAY
         deaths: Optional[int] = datum.get('death')
+        death_increase: Optional[int] = datum.get('deathIncrease')
         hospitalized: Optional[int] = datum.get('hospitalized')
+        hospitalized_increase: Optional[int] = datum.get('hospitalizedIncrease')
         positive: Optional[int] = datum.get('positive')
+        positive_increase: Optional[int] = datum.get('positiveIncrease')
         tests: Optional[int] = datum.get('totalTestResults')
 
         def _derived_stats(count):
@@ -168,11 +174,13 @@ def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
 
         output.append({
             'days': days,
+            'deathIncrease': death_increase,
             'deaths': deaths,
             'deathsPerHospitalized': deaths_per_hospitalized,
             'deathsPerPositive': deaths_per_positive,
             'deathsPerTest': deaths_per_test,
             'hospitalized': hospitalized,
+            'hospitalizedIncrease': hospitalized_increase,
             'hospitalizedPerPositive': hospitalized_per_positive,
             'hospitalizedPerTest': hospitalized_per_test,
             'label': date.date().isoformat(),
@@ -181,6 +189,7 @@ def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
             'lnPositivePerCapita': ln_positive_per_capita,
             'lnTestsPerCapita': ln_tests_per_capita,
             'positive': positive,
+            'positiveIncrease': positive_increase,
             'positivePerTest': positive_per_test,
             'totalTestResults': tests
         })
