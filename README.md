@@ -10,8 +10,6 @@ polymer serve
 
 To deploy the site:
 ```bash
-cd frontend
-polymer build
-cd ../deploy
-gcloud app deploy
+cd covidcharts
+./deploy_site.bash
 ```
