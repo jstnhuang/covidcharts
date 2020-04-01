@@ -36,7 +36,8 @@ class ChartJsChart extends LitElement {
     var datasets = ["positive", "hospitalized", "deaths", "totalTestResults",
       "positiveIncrease", "hospitalizedIncrease", "deathIncrease",
       "positivePerTest", "deathsPerPositive", "deathsPerHospitalized",
-      "deathsPerTest"];
+      "deathsPerTest", "newCasesVsTotalCases", "newCasesVsTotalDeaths",
+      "newDeathsVsTotalDeaths"];
     return html`
       <label for="data">Data:</label>
       <select id="data" @change=${this.changeData}>
@@ -98,6 +99,12 @@ class ChartJsChart extends LitElement {
       return "Total deaths / total tests";
     } else if (codeName === "testsPerCapita") {
       return "Tests conducted per capita";
+    } else if (codeName === "newCasesVsTotalCases") {
+      return "New cases vs. total cases";
+    } else if (codeName === "newCasesVsTotalDeaths") {
+      return "New cases vs. total deaths";
+    } else if (codeName === "newDeathsVsTotalDeaths") {
+      return "New deaths vs. total deaths";
     }
   }
 
@@ -110,6 +117,91 @@ class ChartJsChart extends LitElement {
       return;
     }
 
+    if (this.dataset.indexOf("Vs") === -1) {
+      this.updateTimeChart();
+    } else {
+      this.updateCountChart();
+    }
+  }
+
+  updateCountChart() {
+    // Chart of new cases vs total cases or total deaths
+    
+    var xData = "";
+    var yData = "";
+    if (this.dataset === "newCasesVsTotalCases") {
+      xData = "positive";
+      yData = "positiveIncrease";
+    } else if (this.dataset == "newCasesVsTotalDeaths") {
+      xData = "deaths";
+      yData = "positiveIncrease";
+    } else if (this.dataset == "newDeathsVsTotalDeaths") {
+      xData = "deaths";
+      yData = "deathIncrease";
+    }
+
+    var dataVals = [];
+    for (const datum of this.data) {
+      dataVals.push({
+        x: datum[xData],
+        y: datum[yData]
+      });
+    }
+
+    var maxX = this.data[this.data.length-1][xData];
+
+    var stepSize = maxX / this.data.length;
+    var labels = [];
+    for (const i in this.data) {
+      labels.push(Math.round(i*stepSize));
+    }
+
+    // Output config
+    var chartConfig = {
+      type: 'line',
+      data: {
+        datasets: [{
+          data: dataVals,
+          fill: false,
+          label: this.datasetName(this.dataset),
+          lineTension: 0
+        }],
+        labels: labels
+      },
+      options: {
+        spanGaps: false,
+        scales: {
+          xAxes: [{
+            ticks: {
+              beginAtZero: true,
+              max: maxX,
+              stepSize: stepSize
+            },
+            type: this.useLogScale ? 'logarithmic' : 'linear'
+          }],
+          yAxes: [{
+            ticks: {beginAtZero: true},
+            type: this.useLogScale ? 'logarithmic' : 'linear'
+          }]
+        }
+      }
+    };
+
+    if (this.chart) {
+      Object.assign(this.chartConfig.options, chartConfig.options);
+      Object.assign(this.chartConfig.data, chartConfig.data);
+      this.chart.update();
+    } else {
+      this.chartConfig = chartConfig;
+      var ctx = this.shadowRoot.getElementById('chart');
+      if (ctx) {
+        this.chart = new Chart(ctx, this.chartConfig);
+      }
+    }
+
+  }
+
+  updateTimeChart() {
     // Y-axis
     var dataVals = [];
 
@@ -132,16 +224,21 @@ class ChartJsChart extends LitElement {
       }
     }
 
+    // X-axis
     var dateLabels = this.data.map(function(datum) {
       return datum['label'];
     });
     var latestDay = this.data[this.data.length-1]['days']
 
+    var isDaily = this.dataset.indexOf("Increase") !== -1;
+
+    // Output config
     var chartConfig = {
       type: 'line',
       data: {
         datasets: [{
           data: dataVals,
+          fill: isDaily,
           label: this.datasetName(this.dataset),
           lineTension: 0
         }],
@@ -154,19 +251,18 @@ class ChartJsChart extends LitElement {
             ticks: {
               beginAtZero: true,
               stepSize: 1,
-              min: 0,
-              max: latestDay
-            }
+              max: latestDay,
+            },
+            type: 'linear'
           }],
           yAxes: [{
-            ticks: {beginAtZero: true, min: 0},
+            ticks: {beginAtZero: true},
             type: this.useLogScale ? 'logarithmic' : 'linear'
           }]
         }
       }
     };
 
-    // Output config
     if (this.chart) {
       Object.assign(this.chartConfig.options, chartConfig.options);
       Object.assign(this.chartConfig.data, chartConfig.data);
