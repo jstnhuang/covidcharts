@@ -1,0 +1,17 @@
+runtime: python37
+handlers:
+- url: /data
+  static_dir: static/data
+
+- url: /elements
+  static_dir: static/elements
+
+- url: /node_modules
+  static_dir: static/node_modules
+
+- url: /
+  static_files: static/index.html
+  upload: static/index.html
+
+- url: /.*
+  script: auto
