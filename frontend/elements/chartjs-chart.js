@@ -150,11 +150,7 @@ class ChartJsChart extends LitElement {
 
     var maxX = this.data[this.data.length-1][xData];
 
-    var stepSize = maxX / this.data.length;
-    var labels = [];
-    for (const i in this.data) {
-      labels.push(Math.round(i*stepSize));
-    }
+    var stepSize = maxX / Math.min(this.data.length, 20);
 
     // Output config
     var chartConfig = {
@@ -165,8 +161,7 @@ class ChartJsChart extends LitElement {
           fill: false,
           label: this.datasetName(this.dataset),
           lineTension: 0
-        }],
-        labels: labels
+        }]
       },
       options: {
         spanGaps: false,
@@ -242,7 +237,6 @@ class ChartJsChart extends LitElement {
           label: this.datasetName(this.dataset),
           lineTension: 0
         }],
-        labels: dateLabels
       },
       options: {
         spanGaps: false,
@@ -253,7 +247,8 @@ class ChartJsChart extends LitElement {
               stepSize: 1,
               max: latestDay,
             },
-            type: 'linear'
+            type: 'category',
+            labels: dateLabels
           }],
           yAxes: [{
             ticks: {beginAtZero: true},
