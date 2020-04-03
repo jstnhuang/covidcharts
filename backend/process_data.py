@@ -176,6 +176,15 @@ def process_locality_data(json_data: List[Dict], log_pop: float,
         positive_increase: Optional[int] = datum.get('positiveIncrease')
         tests: Optional[int] = datum.get('totalTestResults')
 
+        # Sometimes these numbers can go down, probably due to data corrections
+        # We just zero them out for the purposes of visualizing # new cases
+        if positive_increase is not None and positive_increase < 0:
+            positive_increase = 0
+        if hospitalized_increase is not None and hospitalized_increase < 0:
+            hospitalized_increase = 0
+        if death_increase is not None and death_increase < 0:
+            death_increase = 0
+
         def _derived_stats(count):
             return compute_derived_stats(count, log_pop, tests, positive,
                                          hospitalized)
