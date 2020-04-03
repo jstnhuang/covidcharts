@@ -324,6 +324,7 @@ class ChartJsChart extends LitElement {
     };
 
     // Add datasets
+    var isDaily = this.dataset.indexOf("Increase") > -1;
     for (var localityIndex in localityData) {
       var dataVals = localityData[localityIndex];
       var locality = dataVals.locality;
@@ -343,7 +344,7 @@ class ChartJsChart extends LitElement {
       chartConfig.data.datasets.push({
         borderColor: color,
         data: dataVals,
-        fill: localityData.length === 1,
+        fill: localityData.length === 1 && isDaily,
         label: locality,
         lineTension: 0
       });
