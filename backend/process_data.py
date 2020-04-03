@@ -14,6 +14,28 @@ import datasets
 DAY = timedelta(days=1)
 OptStrNum = Optional[Union[str, int, float]]
 
+DATA_ORDER = [
+    'days',
+    'deathIncrease',
+    'deaths',
+    'deathsPerHospitalized',
+    'deathsPerPositive',
+    'deathsPerTest',
+    'hospitalized',
+    'hospitalizedIncrease',
+    'hospitalizedPerPositive',
+    'hospitalizedPerTest',
+    'label',
+    'lnDeathsPerCapita',
+    'lnHospitalizedPerCapita',
+    'lnPositivePerCapita',
+    'lnTestsPerCapita',
+    'positive',
+    'positiveIncrease',
+    'positivePerTest',
+    'totalTestResults'
+] # yapf: disable
+
 
 def compute_derived_stats(
     count: Optional[int],
@@ -51,27 +73,7 @@ def compute_derived_stats(
 
 
 def datum_to_list(datum: Dict[str, OptStrNum]) -> List[OptStrNum]:
-    return [
-        datum['days'],
-        datum['deathIncrease'],
-        datum['deaths'],
-        datum['deathsPerHospitalized'],
-        datum['deathsPerPositive'],
-        datum['deathsPerTest'],
-        datum['hospitalized'],
-        datum['hospitalizedIncrease'],
-        datum['hospitalizedPerPositive'],
-        datum['hospitalizedPerTest'],
-        datum['label'],
-        datum['lnDeathsPerCapita'],
-        datum['lnHospitalizedPerCapita'],
-        datum['lnPositivePerCapita'],
-        datum['lnTestsPerCapita'],
-        datum['positive'],
-        datum['positiveIncrease'],
-        datum['positivePerTest'],
-        datum['totalTestResults']
-    ]  # yapf: disable
+    return [datum[f] for f in DATA_ORDER]
 
 
 def fatal(*args, **kwargs):
@@ -111,14 +113,6 @@ def min_max_date(data: List[Dict]) -> Tuple[datetime, datetime]:
         if max_date is None or date < max_date:
             max_date = date
     return cast(datetime, min_date), cast(datetime, max_date)
-
-
-def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
-    """Process US daily dataset
-
-    """
-    return process_locality_data(json_data,
-                                 math.log(datasets.POPULATIONS['US']))
 
 
 def process_locality_data(json_data: List[Dict],
@@ -252,6 +246,16 @@ def process_states_daily(
     return output
 
 
+def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
+    """Process US daily dataset
+
+    """
+    return [
+        datum_to_list(datum) for datum in process_locality_data(
+            json_data, math.log(datasets.POPULATIONS['US']))
+    ]
+
+
 def main() -> None:
     os.makedirs('output', exist_ok=True)
     fns = [(datasets.US_DAILY_NAME, process_us_daily),
@@ -270,10 +274,26 @@ def main() -> None:
                           'type {} in list'.format(name, type(datum)))
             processed_data = process_fn(data)
             output_path = os.path.join('output', '{}.js'.format(name))
+            if name == datasets.US_DAILY_NAME:
+                us_data = {'US': processed_data}
+                json_str = json.dumps(us_data, indent=2)
+            else:
+                json_str = json.dumps(processed_data, indent=2)
             with open(output_path, 'w') as output_file:
-                print('export const {} = {};'.format(
-                    name, json.dumps(processed_data, indent=2)),
+                print('export const {} = {};'.format(name, json_str),
                       file=output_file)
+
+    # Dump the data indices as well
+    index_strs = [
+        '  "{}": {},'.format(DATA_ORDER[i], i) for i in range(len(DATA_ORDER))
+    ]
+    index_str = '\n'.join(index_strs)
+    data_js = ('export const DATA_INDICES = {{\n'
+               '{}\n'
+               '}};').format(index_str)
+    index_path = os.path.join('output', 'data_indices.js')
+    with open(index_path, 'w') as output_file:
+        output_file.write(data_js)
 
 
 if __name__ == '__main__':
