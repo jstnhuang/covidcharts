@@ -35,11 +35,23 @@ class ChartJsChart extends LitElement {
 
   // Rendering -----------------------------------------------------------------
   get renderDataOptions() {
-    var datasets = ["positive", "hospitalized", "deaths", "totalTestResults",
-      "positiveIncrease", "hospitalizedIncrease", "deathIncrease",
-      "positivePerTest", "deathsPerPositive", "deathsPerHospitalized",
-      "deathsPerTest", "newCasesVsTotalCases", "newCasesVsTotalDeaths",
-      "newDeathsVsTotalDeaths"];
+    var datasets = [];
+    
+    if (Object.keys(this.data).length === 1) {
+      datasets = ["positive", "hospitalized", "deaths", "totalTestResults",
+        "positiveIncrease", "hospitalizedIncrease", "deathIncrease",
+        "positivePerTest", "deathsPerPositive", "deathsPerHospitalized",
+        "deathsPerTest", "newCasesVsTotalCases", "newCasesVsTotalDeaths",
+        "newDeathsVsTotalDeaths"];
+    } else {
+      datasets = ["positive", "positivePerCapita", "hospitalized",
+        "hospitalizedPerCapita", "deaths", "deathsPerCapita",
+        "totalTestResults", "testsPerCapita", "positiveIncrease",
+        "hospitalizedIncrease", "deathIncrease", "positivePerTest",
+        "deathsPerPositive", "deathsPerHospitalized", "deathsPerTest",
+        "newCasesVsTotalCases", "newCasesVsTotalDeaths",
+        "newDeathsVsTotalDeaths"];
+    }
     return html`
       <label for="data">Data:</label>
       <select id="data" @change=${this.changeData}>
@@ -85,22 +97,24 @@ class ChartJsChart extends LitElement {
       return "# daily cases";
     } else if (codeName === "hospitalizedIncrease") {
       return "# daily hospitalized";
+    } else if (codeName === "hospitalizedPerCapita") {
+      return "Total hospitalized per 10,000";
     } else if (codeName === "deathIncrease") {
       return "# daily deaths";
     } else if (codeName === "positivePerTest") {
       return "Total confirmed cases / total tests";
     } else if (codeName === "positivePerCapita") {
-      return "Total Confirmed cases per capita";
+      return "Total confirmed cases per 10,000";
     } else if (codeName === "deathsPerPositive") {
       return "Total deaths / total confirmed cases";
     } else if (codeName === "deathsPerCapita") {
-      return "Total deaths per capita";
+      return "Total deaths per 10,000";
     } else if (codeName === "deathsPerHospitalized") {
       return "Total deaths / total hospitalized";
     } else if (codeName === "deathsPerTest") {
       return "Total deaths / total tests";
     } else if (codeName === "testsPerCapita") {
-      return "Tests conducted per capita";
+      return "Tests conducted per 10,000";
     } else if (codeName === "newCasesVsTotalCases") {
       return "New cases vs. total cases";
     } else if (codeName === "newCasesVsTotalDeaths") {
@@ -224,32 +238,39 @@ class ChartJsChart extends LitElement {
 
     var latestDay = null;
     var dateLabelSet = {}
+    var isPerCapita = this.dataset.endsWith("PerCapita");
     for (let [locality, dataset] of Object.entries(this.data)) {
       var dataVals = [];
       for (const datum of dataset) {
         // Update latest day seen in all the datasets
-        if (latestDay === null || dataset[DATA_INDICES["days"]] > latestDay) {
+        if (latestDay === null || datum[DATA_INDICES["days"]] > latestDay) {
           latestDay = datum[DATA_INDICES["days"]];
         }
 
         // Add to the date labels
         dateLabelSet[datum[DATA_INDICES["label"]]] = 1;
 
-        if (this.dataset.endsWith("PerCapita")) {
+        if (isPerCapita) {
           var lnDataType = "ln" + this.dataset[0].toUpperCase() + this.dataset.slice(1);
-          var val = datum[lnDataType];
-          if (val !== null) {
-            val = Math.exp(val);
+          var val = datum[DATA_INDICES[lnDataType]];
+          if (val === 0 || val === NaN) {
+            val = null;
           }
-          dataVals.push({
-            x: datum[DATA_INDICES["days"]],
-            y: val ? val : NaN
-          });
+          if (val !== null) {
+            val = 10000 * Math.exp(val);
+            dataVals.push({
+              x: datum[DATA_INDICES["days"]],
+              y: val
+            });
+          }
         } else {
-          dataVals.push({
-            x: datum[DATA_INDICES["days"]],
-            y: datum[DATA_INDICES[this.dataset]]
-          });
+          var y = datum[DATA_INDICES[this.dataset]];
+          if (!this.useLogScale || (this.useLogScale && y > 0)) {
+            dataVals.push({
+              x: datum[DATA_INDICES["days"]],
+              y: datum[DATA_INDICES[this.dataset]]
+            });
+          }
         }
       }
       dataVals.locality = locality;
@@ -265,8 +286,7 @@ class ChartJsChart extends LitElement {
     var chartConfig = {
       type: 'line',
       data: {
-        datasets: [],
-        labels: dateLabels
+        datasets: []
       },
       options: {
         spanGaps: false,
@@ -274,11 +294,14 @@ class ChartJsChart extends LitElement {
           xAxes: [{
             ticks: {
               beginAtZero: true,
-              stepSize: 1,
+              stepSize: dateLabels.length / 30,
               max: latestDay,
+              maxTicksLimit: 30,
+              callback: function(value, index, values) {
+                return dateLabels[Math.round(value)];
+              }
             },
-            type: 'category',
-            labels: dateLabels
+            type: 'linear',
           }],
           yAxes: [{
             ticks: {beginAtZero: true},
