@@ -50,6 +50,30 @@ def compute_derived_stats(
     return ln_per_capita, per_test, per_positive, per_hospitalized
 
 
+def datum_to_list(datum: Dict[str, OptStrNum]) -> List[OptStrNum]:
+    return [
+        datum['days'],
+        datum['deathIncrease'],
+        datum['deaths'],
+        datum['deathsPerHospitalized'],
+        datum['deathsPerPositive'],
+        datum['deathsPerTest'],
+        datum['hospitalized'],
+        datum['hospitalizedIncrease'],
+        datum['hospitalizedPerPositive'],
+        datum['hospitalizedPerTest'],
+        datum['label'],
+        datum['lnDeathsPerCapita'],
+        datum['lnHospitalizedPerCapita'],
+        datum['lnPositivePerCapita'],
+        datum['lnTestsPerCapita'],
+        datum['positive'],
+        datum['positiveIncrease'],
+        datum['positivePerTest'],
+        datum['totalTestResults']
+    ]  # yapf: disable
+
+
 def fatal(*args, **kwargs):
     kwargs['file'] = sys.stderr
     print(*args, **kwargs)
@@ -91,6 +115,18 @@ def min_max_date(data: List[Dict]) -> Tuple[datetime, datetime]:
 
 def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
     """Process US daily dataset
+
+    """
+    return process_locality_data(json_data,
+                                 math.log(datasets.POPULATIONS['US']))
+
+
+def process_locality_data(json_data: List[Dict],
+                          log_pop: float) -> List[Dict[str, OptStrNum]]:
+    """Process data for either the US as a whole or for a particular state
+
+    Args:
+        log_pop: the natural log of the population of the locality
 
     Returns: [
         {
@@ -136,20 +172,20 @@ def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
     json_data = sorted(json_data, key=get_date)
 
     output: List[Dict[str, OptStrNum]] = []
-    LOG_POP = math.log(datasets.US_POPULATION)
     for datum in json_data:
         date = get_date(datum)
         days = (date - min_date) / DAY
         deaths: Optional[int] = datum.get('death')
         death_increase: Optional[int] = datum.get('deathIncrease')
         hospitalized: Optional[int] = datum.get('hospitalized')
-        hospitalized_increase: Optional[int] = datum.get('hospitalizedIncrease')
+        hospitalized_increase: Optional[int] = datum.get(
+            'hospitalizedIncrease')
         positive: Optional[int] = datum.get('positive')
         positive_increase: Optional[int] = datum.get('positiveIncrease')
         tests: Optional[int] = datum.get('totalTestResults')
 
         def _derived_stats(count):
-            return compute_derived_stats(count, LOG_POP, tests, positive,
+            return compute_derived_stats(count, log_pop, tests, positive,
                                          hospitalized)
 
         (
@@ -197,9 +233,29 @@ def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
     return output
 
 
+def process_states_daily(
+        json_data: List[Dict]) -> Dict[str, List[List[OptStrNum]]]:
+    """Process daily state data
+
+    Returns: a dictionary from states ID (e.g., CA, TX) to a list of lists. The
+        outer list represents time, each element is a day's data. Each inner
+        list contains data in the same order as listed in process_locality_data
+    """
+    output = {}
+    for state in datasets.STATES:
+        state_data = [
+            d for d in json_data if 'state' in d and d['state'] == state
+        ]
+        state_output = process_locality_data(
+            state_data, math.log(datasets.POPULATIONS[state]))
+        output[state] = [datum_to_list(datum) for datum in state_output]
+    return output
+
+
 def main() -> None:
     os.makedirs('output', exist_ok=True)
-    fns = [(datasets.US_DAILY_NAME, process_us_daily)]
+    fns = [(datasets.US_DAILY_NAME, process_us_daily),
+           (datasets.STATES_DAILY_NAME, process_states_daily)]
     for name, process_fn in fns:
         with open(datasets.path(name)) as json_file:
             data = json.load(json_file)
