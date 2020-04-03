@@ -1,5 +1,7 @@
 import { LitElement, css, html } from 'lit-element';
 
+import {DATA_INDICES} from '../data/data_indices.js';
+
 class ChartJsChart extends LitElement {
   constructor() {
     super();
@@ -125,43 +127,51 @@ class ChartJsChart extends LitElement {
   }
 
   updateCountChart() {
-    // Chart of new cases vs total cases or total deaths
-    
-    var xData = "";
-    var yData = "";
+    // Chart of new cases vs (total cases or total deaths)
+    var xField = "";
+    var yField = "";
     if (this.dataset === "newCasesVsTotalCases") {
-      xData = "positive";
-      yData = "positiveIncrease";
+      xField = "positive";
+      yField = "positiveIncrease";
     } else if (this.dataset == "newCasesVsTotalDeaths") {
-      xData = "deaths";
-      yData = "positiveIncrease";
+      xField = "deaths";
+      yField = "positiveIncrease";
     } else if (this.dataset == "newDeathsVsTotalDeaths") {
-      xData = "deaths";
-      yData = "deathIncrease";
+      xField = "deaths";
+      yField = "deathIncrease";
     }
 
-    var dataVals = [];
-    for (const datum of this.data) {
-      dataVals.push({
-        x: datum[xData],
-        y: datum[yData]
-      });
+    var maxX = null;
+    var maxDataValsSize = 0;
+
+    var localityData = [];
+    for (let [locality, dataset] of Object.entries(this.data)) {
+      var dataVals = [];
+      for (const datum of dataset) {
+        // Update maxX
+        if (maxX === null || datum[DATA_INDICES[xField]] > maxX) {
+          maxX = datum[""];
+        }
+        
+        dataVals.push({
+          x: datum[DATA_INDICES[xField]],
+          y: datum[DATA_INDICES[yField]]
+        });
+      }
+      if (dataVals.length > maxDataValsSize) {
+        maxDataValsSize = dataVals.length;
+      }
+      dataVals.locality = locality;
+      localityData.push(dataVals);
     }
 
-    var maxX = this.data[this.data.length-1][xData];
-
-    var stepSize = maxX / Math.min(this.data.length, 20);
+    var stepSize = maxX / Math.min(maxDataValsSize, 20);
 
     // Output config
     var chartConfig = {
       type: 'line',
       data: {
-        datasets: [{
-          data: dataVals,
-          fill: false,
-          label: this.datasetName(this.dataset),
-          lineTension: 0
-        }]
+        datasets: []
       },
       options: {
         spanGaps: false,
@@ -182,6 +192,18 @@ class ChartJsChart extends LitElement {
       }
     };
 
+    // Add datasets
+    for (var localityIndex in localityData) {
+      var dataVals = localityData[localityIndex];
+      var locality = dataVals.locality;
+      chartConfig.data.datasets.push({
+        data: dataVals,
+        fill: false,
+        label: locality,
+        lineTension: 0
+      });
+    }
+
     if (this.chart) {
       Object.assign(this.chartConfig.options, chartConfig.options);
       Object.assign(this.chartConfig.data, chartConfig.data);
@@ -198,32 +220,44 @@ class ChartJsChart extends LitElement {
 
   updateTimeChart() {
     // Y-axis
-    var dataVals = [];
+    var localityData = [];
 
-    for (const datum of this.data) {
-      if (this.dataset.endsWith("PerCapita")) {
-        var lnDataType = "ln" + this.dataset[0].toUpperCase() + this.dataset.slice(1);
-        var val = datum[lnDataType];
-        if (val !== null) {
-          val = Math.exp(val);
+    var latestDay = null;
+    var dateLabelSet = {}
+    for (let [locality, dataset] of Object.entries(this.data)) {
+      var dataVals = [];
+      for (const datum of dataset) {
+        // Update latest day seen in all the datasets
+        if (latestDay === null || dataset[DATA_INDICES["days"]] > latestDay) {
+          latestDay = datum[DATA_INDICES["days"]];
         }
-        dataVals.push({
-          x: datum["days"],
-          y: val ? val : NaN
-        });
-      } else {
-        dataVals.push({
-          x: datum["days"],
-          y: datum[this.dataset]
-        });
+
+        // Add to the date labels
+        dateLabelSet[datum[DATA_INDICES["label"]]] = 1;
+
+        if (this.dataset.endsWith("PerCapita")) {
+          var lnDataType = "ln" + this.dataset[0].toUpperCase() + this.dataset.slice(1);
+          var val = datum[lnDataType];
+          if (val !== null) {
+            val = Math.exp(val);
+          }
+          dataVals.push({
+            x: datum[DATA_INDICES["days"]],
+            y: val ? val : NaN
+          });
+        } else {
+          dataVals.push({
+            x: datum[DATA_INDICES["days"]],
+            y: datum[DATA_INDICES[this.dataset]]
+          });
+        }
       }
+      dataVals.locality = locality;
+      localityData.push(dataVals);
     }
 
     // X-axis
-    var dateLabels = this.data.map(function(datum) {
-      return datum['label'];
-    });
-    var latestDay = this.data[this.data.length-1]['days']
+    var dateLabels = Object.keys(dateLabelSet).sort();
 
     var isDaily = this.dataset.indexOf("Increase") !== -1;
 
@@ -231,12 +265,8 @@ class ChartJsChart extends LitElement {
     var chartConfig = {
       type: 'line',
       data: {
-        datasets: [{
-          data: dataVals,
-          fill: isDaily,
-          label: this.datasetName(this.dataset),
-          lineTension: 0
-        }],
+        datasets: [],
+        labels: dateLabels
       },
       options: {
         spanGaps: false,
@@ -257,6 +287,18 @@ class ChartJsChart extends LitElement {
         }
       }
     };
+
+    // Add datasets
+    for (var localityIndex in localityData) {
+      var dataVals = localityData[localityIndex];
+      var locality = dataVals.locality;
+      chartConfig.data.datasets.push({
+        data: dataVals,
+        fill: isDaily,
+        label: locality,
+        lineTension: 0
+      });
+    }
 
     if (this.chart) {
       Object.assign(this.chartConfig.options, chartConfig.options);
