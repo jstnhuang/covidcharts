@@ -66,7 +66,7 @@ def compute_derived_stats(
             per_hospitalized = count / hospitalized
 
         if count == 0:
-            ln_per_capita = 0.0
+            ln_per_capita = None
         else:
             ln_per_capita = math.log(count) - ln_population
     return ln_per_capita, per_test, per_positive, per_hospitalized
@@ -115,8 +115,8 @@ def min_max_date(data: List[Dict]) -> Tuple[datetime, datetime]:
     return cast(datetime, min_date), cast(datetime, max_date)
 
 
-def process_locality_data(json_data: List[Dict],
-                          log_pop: float) -> List[Dict[str, OptStrNum]]:
+def process_locality_data(json_data: List[Dict], log_pop: float,
+                          min_date: datetime) -> List[Dict[str, OptStrNum]]:
     """Process data for either the US as a whole or for a particular state
 
     Args:
@@ -157,8 +157,6 @@ def process_locality_data(json_data: List[Dict],
     positivePerTest: number of positive test results per test
     totalTestResults: The number of tests
     """
-    # Get min/max date
-    min_date, max_date = min_max_date(json_data)
     # Eliminate data with no date
     json_data = [d for d in json_data if has_valid_date(d)]
 
@@ -168,7 +166,7 @@ def process_locality_data(json_data: List[Dict],
     output: List[Dict[str, OptStrNum]] = []
     for datum in json_data:
         date = get_date(datum)
-        days = (date - min_date) / DAY
+        days = round((date - min_date) / DAY)
         deaths: Optional[int] = datum.get('death')
         death_increase: Optional[int] = datum.get('deathIncrease')
         hospitalized: Optional[int] = datum.get('hospitalized')
@@ -235,13 +233,16 @@ def process_states_daily(
         outer list represents time, each element is a day's data. Each inner
         list contains data in the same order as listed in process_locality_data
     """
+    # Get the earliest date across all states
+    min_date, max_date = min_max_date(json_data)
+
     output = {}
     for state in datasets.STATES:
         state_data = [
             d for d in json_data if 'state' in d and d['state'] == state
         ]
         state_output = process_locality_data(
-            state_data, math.log(datasets.POPULATIONS[state]))
+            state_data, math.log(datasets.POPULATIONS[state]), min_date)
         output[state] = [datum_to_list(datum) for datum in state_output]
     return output
 
@@ -250,9 +251,10 @@ def process_us_daily(json_data: List[Dict]) -> List[Dict[str, OptStrNum]]:
     """Process US daily dataset
 
     """
+    min_date, max_date = min_max_date(json_data)
     return [
         datum_to_list(datum) for datum in process_locality_data(
-            json_data, math.log(datasets.POPULATIONS['US']))
+            json_data, math.log(datasets.POPULATIONS['US']), min_date)
     ]
 
 
