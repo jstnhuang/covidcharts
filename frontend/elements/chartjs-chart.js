@@ -280,8 +280,6 @@ class ChartJsChart extends LitElement {
     // X-axis
     var dateLabels = Object.keys(dateLabelSet).sort();
 
-    var isDaily = this.dataset.indexOf("Increase") !== -1;
-
     // Output config
     var chartConfig = {
       type: 'line',
@@ -315,9 +313,23 @@ class ChartJsChart extends LitElement {
     for (var localityIndex in localityData) {
       var dataVals = localityData[localityIndex];
       var locality = dataVals.locality;
+      var hue = Math.round(300 / localityData.length * localityIndex);
+      var sat = '';
+      if (localityIndex % 3 == 0) {
+        sat = '25%';
+      } else if (localityIndex % 3 == 0) {
+        sat = '50%';
+      } else {
+        sat = '75%';
+      }
+      var color = 'hsla(' + hue + ', ' + sat + ', 60%, 50%)';
+      if (localityData.length == 1) {
+        color = 'rgba(0, 0, 0, 0.25)';
+      }
       chartConfig.data.datasets.push({
+        borderColor: color,
         data: dataVals,
-        fill: isDaily,
+        fill: localityData.length === 1,
         label: locality,
         lineTension: 0
       });
