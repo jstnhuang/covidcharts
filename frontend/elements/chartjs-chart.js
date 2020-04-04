@@ -306,9 +306,9 @@ class ChartJsChart extends LitElement {
           xAxes: [{
             ticks: {
               beginAtZero: true,
-              stepSize: dateLabels.length / 30,
+              stepSize: dateLabels.length / 40,
               max: latestDay,
-              maxTicksLimit: 30,
+              maxTicksLimit: 40,
               callback: function(value, index, values) {
                 return dateLabels[Math.round(value)];
               }
@@ -330,12 +330,14 @@ class ChartJsChart extends LitElement {
       var locality = dataVals.locality;
       var hue = Math.round(300 / localityData.length * localityIndex);
       var sat = '';
-      if (localityIndex % 3 == 0) {
-        sat = '25%';
-      } else if (localityIndex % 3 == 0) {
-        sat = '50%';
+      if (localityIndex % 4 == 0) {
+        sat = '20%';
+      } else if (localityIndex % 3 == 1) {
+        sat = '40%';
+      } else if (localityIndex % 3 == 2) {
+        sat = '60%';
       } else {
-        sat = '75%';
+        sat = '80%';
       }
       var color = 'hsla(' + hue + ', ' + sat + ', 60%, 50%)';
       if (localityData.length == 1) {

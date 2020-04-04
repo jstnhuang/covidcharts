@@ -26,10 +26,15 @@ class CovidChartsApp extends LitElement {
       <h2>State Data</h2>
       <chartjs-chart .data="${states_daily}"></chartjs-chart>
 
-      <h2>About the data</h2>
+      <h2>About</h2>
       <p>
-        All the data shown here is from
+        This page shows visualizations of data from
         <a href="https://covidtracking.com/">The COVID Tracking Project</a>.
+        The data may be incorrect or incomplete. This visualization has not been
+        validated and should not be used to make projections or to do modeling.
+      </p>
+      <p>
+        Code available on <a href="https://github.com/jstnhuang/covidcharts">GitHub</a>.
       </p>
     `;
   }
